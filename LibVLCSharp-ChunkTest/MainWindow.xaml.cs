@@ -14,21 +14,42 @@ namespace LibVLCSharp_ChunkTest
     public partial class MainWindow : Window
     {
         private readonly LibVLC libVlc = new LibVLC(enableDebugLogs: true);
-        private BlockingStreamMediaInput? chunkStream;
+        private CancellationTokenSource? cancellationTokenSource;
+        private BlockingStreamMediaInput? blockingStreamMediaInput;
         public MainWindow()
         {
             InitializeComponent();
+
             MediaPlayer mediaPlayer = new MediaPlayer(libVlc);
             Player.MediaPlayer = mediaPlayer;
         }
         void PlayButton_Click(object sender, RoutedEventArgs e)
         {
-            chunkStream = new BlockingStreamMediaInput();
-            _ = Task.Run(async () => await this.StartTestStreamLocal(chunkStream));
-
             if (!Player.MediaPlayer.IsPlaying)
             {
-                Player.MediaPlayer.Play(new Media(libVlc, chunkStream));
+                Console.WriteLine($"DPHandler:PlayButton_Click - Playing stream.");
+
+                blockingStreamMediaInput = new BlockingStreamMediaInput();
+                cancellationTokenSource = new CancellationTokenSource();
+                _ = Task.Run(async () => await this.StartTestStream(blockingStreamMediaInput, cancellationTokenSource.Token));
+                Player.MediaPlayer.Play(new Media(libVlc, blockingStreamMediaInput));
+            }
+        }
+
+        void StopButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (Player.MediaPlayer.IsPlaying)
+            {
+                Console.WriteLine($"DPHandler:StopButton_Click - Stopping stream.");
+
+                if (null != cancellationTokenSource)
+                {
+                    cancellationTokenSource.Cancel();
+                    if(null != blockingStreamMediaInput)
+                    {
+                        blockingStreamMediaInput.SetFinished();
+                    }
+                }
             }
         }
 
@@ -40,6 +61,7 @@ namespace LibVLCSharp_ChunkTest
                 blockingStreamMediaInput.AddChunk(chunk);
                 Thread.Sleep(1000);
             }
+            blockingStreamMediaInput.SetFinished();
 
         }
         private async Task StartTestStream(BlockingStreamMediaInput blockingStreamMediaInput, CancellationToken cancellationToken = default)
@@ -97,9 +119,7 @@ namespace LibVLCSharp_ChunkTest
                     Console.WriteLine($"DPHandler:StartLibVLCStream - Exception in stream loop: {ex.Message}");
                 }
             }
-
-            Console.WriteLine($"DPHandler:StartLibVLCStream - Finished writing chunks, waiting...");
-
+            blockingStreamMediaInput.SetFinished();
         }
         private async Task<List<string>> GetPlaylistList()
         {

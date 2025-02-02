@@ -14,7 +14,12 @@
         </Grid.RowDefinitions>
 
         <uc:VideoView x:Name="Player" Grid.Row="0" />
-        <Button Content="Play" Grid.Row="1" HorizontalAlignment="Center" Margin="10" Click="PlayButton_Click"/>
 
+        <!-- StackPanel to arrange the buttons horizontally -->
+        <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Center" Margin="10">
+            <Button Content="Play" Click="PlayButton_Click" Margin="5"/>
+            <Button Content="Stop" Click="StopButton_Click" Margin="5"/>
+        </StackPanel>
     </Grid>
+
 </Window>

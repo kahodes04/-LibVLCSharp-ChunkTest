@@ -7,11 +7,25 @@ namespace LibVLCSharp_ChunkTest
         private readonly object _lock = new();
         private int _currentOffset = 0;
         private byte[] _buffer;
+        private bool isFinished = false;
 
         public BlockingStreamMediaInput()
         {
             _buffer = [];
             this.CanSeek = false;
+        }
+
+        /// <summary>
+        /// Marks the stream as finished.
+        /// </summary>
+        public void SetFinished()
+        {
+            lock (_lock)
+            {
+                Console.WriteLine($"BlockingStreamMediaInput:AddChunk - Marking the stream as finished.");
+                isFinished = true;
+                Monitor.PulseAll(_lock);
+            }
         }
 
         /// <summary>
@@ -49,16 +63,28 @@ namespace LibVLCSharp_ChunkTest
 
             lock (_lock)
             {
+                if (isFinished)
+                {
+                    Console.WriteLine($"BlockingStreamMediaInput:Read - isFinished true, returning 0 (EOF).");
+                    return 0;
+                }
                 while (_buffer.Length - _currentOffset == 0)
                 {
                     Console.WriteLine($"BlockingStreamMediaInput:Read - No new data to read. Waiting...");
                     Monitor.Wait(_lock);
+                    if (isFinished)
+                    {
+                        Console.WriteLine($"BlockingStreamMediaInput:Read - isFinished true, returning 0 (EOF).");
+                        return 0;
+                    }
                 }
+              
                 if (_buffer.Length - _currentOffset < 0)
                 {
                     Console.WriteLine($"BlockingStreamMediaInput:Read - Error: Buffer length - currentOffset is < 0.");
                     return -1;
                 }
+            
 
                 int bytesToCopy = Math.Min((int)len, _buffer.Length - _currentOffset);
 
